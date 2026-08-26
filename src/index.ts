@@ -9,7 +9,8 @@ import { assertReadOnlySelect, assertOnlyAllowedTables } from "./sqlGuard.js";
 
 // Para agregar otra tabla despues: (1) dale GRANT SELECT en SQL Server al
 // login mcp_readonly sobre esa tabla, (2) agregala aqui.
-const ALLOWED_TABLES = ["DWH.FACTURAS"];
+const ALLOWED_TABLES = ["dbo.VW_VISTAPRUEBAS"];
+const [MAIN_TABLE_SCHEMA, MAIN_TABLE_NAME] = ALLOWED_TABLES[0].split(".");
 
 const MAX_ROWS = 200;
 
@@ -21,18 +22,22 @@ function buildServer(): McpServer {
 
   server.tool(
     "listar_columnas_facturas",
-    "Devuelve el nombre y tipo de cada columna de la tabla DWH.facturas. " +
+    `Devuelve el nombre y tipo de cada columna de ${ALLOWED_TABLES[0]}. ` +
       "Usa esta herramienta primero, antes de escribir una consulta, si no conoces el esquema de la tabla.",
     {},
     async () => {
       try {
         const pool = await getPool();
-        const result = await pool.request().query(
-          `SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE
-           FROM INFORMATION_SCHEMA.COLUMNS
-           WHERE TABLE_SCHEMA = 'DWH' AND TABLE_NAME = 'facturas'
-           ORDER BY ORDINAL_POSITION`
-        );
+        const result = await pool
+          .request()
+          .input("schema", MAIN_TABLE_SCHEMA)
+          .input("table", MAIN_TABLE_NAME)
+          .query(
+            `SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE
+             FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA = @schema AND TABLE_NAME = @table
+             ORDER BY ORDINAL_POSITION`
+          );
         return {
           content: [{ type: "text", text: JSON.stringify(result.recordset, null, 2) }],
         };
@@ -45,15 +50,15 @@ function buildServer(): McpServer {
 
   server.tool(
     "consultar_facturas",
-    "Ejecuta una consulta SQL de solo lectura (SELECT) contra la tabla DWH.facturas para responder " +
+    `Ejecuta una consulta SQL de solo lectura (SELECT) contra ${ALLOWED_TABLES[0]} para responder ` +
       "preguntas de negocio (ventas del dia, totales por cliente, facturas de un periodo, etc). " +
-      "Solo se permite SELECT sobre DWH.facturas -- cualquier otra cosa se rechaza. " +
+      `Solo se permite SELECT sobre ${ALLOWED_TABLES[0]} -- cualquier otra cosa se rechaza. ` +
       "Si no conoces las columnas de la tabla, usa primero la herramienta listar_columnas_facturas.",
     {
       sql: z
         .string()
         .describe(
-          "Consulta SQL SELECT contra DWH.facturas. Ejemplo: SELECT SUM(valor) AS total FROM DWH.facturas WHERE fecha = '2026-08-19'"
+          `Consulta SQL SELECT contra ${ALLOWED_TABLES[0]}. Ejemplo: SELECT SUM(valor) AS total FROM ${ALLOWED_TABLES[0]} WHERE fecha = '2026-08-19'`
         ),
     },
     async ({ sql: query }) => {
