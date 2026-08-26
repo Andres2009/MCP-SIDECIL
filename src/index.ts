@@ -21,9 +21,10 @@ function buildServer(): McpServer {
   });
 
   server.tool(
-    "listar_columnas_facturas",
-    `Devuelve el nombre y tipo de cada columna de ${ALLOWED_TABLES[0]}. ` +
-      "Usa esta herramienta primero, antes de escribir una consulta, si no conoces el esquema de la tabla.",
+    "listar_columnas_ausencias",
+    `Devuelve el nombre y tipo de cada columna de ${ALLOWED_TABLES[0]} (vista de ausencias e incapacidades ` +
+      "de empleados: tipo de ausencia, fechas, dias ausente, montos, diagnostico, tipo de discapacidad, etc). " +
+      "Usa esta herramienta primero, antes de escribir una consulta, si no conoces el esquema de la vista.",
     {},
     async () => {
       try {
@@ -49,16 +50,18 @@ function buildServer(): McpServer {
   );
 
   server.tool(
-    "consultar_facturas",
+    "consultar_ausencias",
     `Ejecuta una consulta SQL de solo lectura (SELECT) contra ${ALLOWED_TABLES[0]} para responder ` +
-      "preguntas de negocio (ventas del dia, totales por cliente, facturas de un periodo, etc). " +
+      "preguntas sobre ausencias e incapacidades de empleados (dias ausentes por empleado, tipo de " +
+      "ausencia, incapacidades por diagnostico, licencias vigentes en un periodo, montos de recuperacion, etc). " +
       `Solo se permite SELECT sobre ${ALLOWED_TABLES[0]} -- cualquier otra cosa se rechaza. ` +
-      "Si no conoces las columnas de la tabla, usa primero la herramienta listar_columnas_facturas.",
+      "Si no conoces las columnas de la vista, usa primero la herramienta listar_columnas_ausencias.",
     {
       sql: z
         .string()
         .describe(
-          `Consulta SQL SELECT contra ${ALLOWED_TABLES[0]}. Ejemplo: SELECT SUM(valor) AS total FROM ${ALLOWED_TABLES[0]} WHERE fecha = '2026-08-19'`
+          `Consulta SQL SELECT contra ${ALLOWED_TABLES[0]}. Ejemplo: SELECT EMPLOYEE, TYPEOFABSENSE, STARTDATE, ENDDATE, ABSENTDAYS ` +
+            `FROM ${ALLOWED_TABLES[0]} WHERE STARTDATE >= '2026-01-01'`
         ),
     },
     async ({ sql: query }) => {
